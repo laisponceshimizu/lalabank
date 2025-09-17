@@ -93,14 +93,22 @@ def calcular_dados_dashboard(user_id):
     Função central que busca todos os dados e chama as funções auxiliares
     para fazer os cálculos do dashboard.
     """
-    # 1. Busca os dados brutos do banco de dados
+    # 1. Busca os dados brutos do banco de dados e converte para tipos padrão do Python
     transacoes_normais = [dict(t) for t in get_transacoes_db(user_id)]
     compras_parceladas = [dict(p) for p in get_compras_parceladas_db(user_id)]
-    metas = get_metas_db(user_id)
-    contas_conhecidas = get_contas_conhecidas(user_id)
-    categorias_usuario = get_categorias(user_id)
-    regras_cartoes = get_regras_cartoes_db(user_id)
-    lembretes = get_lembretes_db(user_id)
+    lembretes = [dict(l) for l in get_lembretes_db(user_id)]
+    metas = dict(get_metas_db(user_id))
+    regras_cartoes = dict(get_regras_cartoes_db(user_id))
+
+    # Conversão profunda para estruturas aninhadas
+    contas_data = get_contas_conhecidas(user_id)
+    contas_conhecidas = {
+        'contas': list(contas_data.get('contas', [])),
+        'cartoes': list(contas_data.get('cartoes', []))
+    }
+
+    categorias_data = get_categorias(user_id)
+    categorias_usuario = {k: list(v) for k, v in categorias_data.items()}
 
     # 2. Gera e combina transações
     parcelas_do_mes = _calcular_parcelas_do_mes(compras_parceladas, regras_cartoes)
@@ -136,4 +144,3 @@ def calcular_dados_dashboard(user_id):
         'contas_disponiveis': contas_conhecidas, 'metas': metas, 'lembretes': lembretes,
         'regras_cartoes': regras_cartoes
     }
-
