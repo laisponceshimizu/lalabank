@@ -17,6 +17,11 @@ def salvar_transacao_db(user_id, data):
     transacoes.append(data)
     set_user_data(user_id, "transacoes", transacoes)
 
+def apagar_transacao_db(user_id, timestamp):
+    transacoes = get_transacoes_db(user_id)
+    novas_transacoes = [t for t in transacoes if t.get('timestamp') != timestamp]
+    set_user_data(user_id, "transacoes", novas_transacoes)
+
 def get_compras_parceladas_db(user_id):
     return get_user_data(user_id, "parceladas", [])
 
