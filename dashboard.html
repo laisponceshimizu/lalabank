@@ -50,7 +50,6 @@
         </div>
 
         <div id="Dashboard" class="tab-content active">
-            <!-- Conteúdo da Aba Dashboard -->
             <h2>Resumo Geral</h2>
             <div class="summary">
                 <div class="card"><h3 class="receita">Total de Receitas</h3><p class="receita">R$ {{ "%.2f"|format(total_receitas) }}</p></div>
@@ -78,7 +77,6 @@
         </div>
 
         <div id="Extrato" class="tab-content">
-            <!-- Conteúdo da Aba Extrato -->
             {% if previsao_faturas %}
             <h2>Previsão de Faturas Futuras</h2>
             <table>
@@ -126,7 +124,6 @@
         </div>
 
         <div id="Configuracoes" class="tab-content">
-            <!-- Conteúdo da Aba Configurações -->
             <h2>Configurações</h2>
             <div class="settings-grid">
                 <div class="settings-card">
@@ -180,7 +177,7 @@
                 <div class="settings-card">
                     <h3>Regras dos Cartões</h3>
                     <form id="card-rules-form">
-                        {% for cartao in contas_disponiveis.cartoes %}
+                        {% for cartao in contas_disponiveis.contas %}
                         <div class="form-group card-rules-grid">
                             <label for="fechamento-{{cartao}}">{{cartao}} - Dia Fecho:</label>
                             <input type="number" id="fechamento-{{cartao}}" value="{{ regras_cartoes.get(cartao, '') }}" min="1" max="31">
@@ -289,7 +286,7 @@
         document.getElementById('card-rules-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const regras = {};
-            const cartoes = {{ contas_disponiveis.cartoes|tojson|safe }};
+            const cartoes = {{ contas_disponiveis.contas|tojson|safe }};
             cartoes.forEach(cartao => {
                 const value = document.getElementById(`fechamento-${cartao}`).value;
                 if(value) regras[cartao] = parseInt(value, 10);
@@ -377,4 +374,3 @@
     </script>
 </body>
 </html>
-
