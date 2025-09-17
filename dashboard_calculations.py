@@ -95,23 +95,30 @@ def calcular_dados_dashboard(user_id):
     """
     # 1. Busca os dados brutos do banco de dados e converte para tipos padrão do Python
     transacoes_normais = [dict(t) for t in get_transacoes_db(user_id)]
+    # Adiciona a flag para permitir a exclusão
+    for t in transacoes_normais:
+        t['is_deletable'] = True
+
     compras_parceladas = [dict(p) for p in get_compras_parceladas_db(user_id)]
     lembretes = [dict(l) for l in get_lembretes_db(user_id)]
     metas = dict(get_metas_db(user_id))
     regras_cartoes = dict(get_regras_cartoes_db(user_id))
-
-    # Conversão profunda para estruturas aninhadas
+    
     contas_data = get_contas_conhecidas(user_id)
     contas_conhecidas = {
         'contas': list(contas_data.get('contas', [])),
         'cartoes': list(contas_data.get('cartoes', []))
     }
-
+    
     categorias_data = get_categorias(user_id)
     categorias_usuario = {k: list(v) for k, v in categorias_data.items()}
 
     # 2. Gera e combina transações
     parcelas_do_mes = _calcular_parcelas_do_mes(compras_parceladas, regras_cartoes)
+    # Adiciona a flag para impedir a exclusão de parcelas
+    for p in parcelas_do_mes:
+        p['is_deletable'] = False
+        
     transacoes_completas = sorted(transacoes_normais + parcelas_do_mes, key=lambda t: t['timestamp'], reverse=True)
 
     # 3. Cálculos de totais
