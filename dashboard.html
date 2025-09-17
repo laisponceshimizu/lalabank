@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro - Lalabank</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background-color: #f8f9fa; color: #212529; }
+        .container { max-width: 1600px; margin: auto; padding: 2em; }
+        h1, h2, h3 { color: #343a40; }
+        .summary, .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5em; margin-bottom: 2em; }
+        .card { background-color: white; padding: 1.5em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .card h3 { margin-top: 0; font-size: 1em; color: #6c757d; }
+        .card p { font-size: 1.5em; font-weight: bold; margin-bottom: 0; }
+        .receita { color: #198754; }
+        .despesa { color: #dc3545; }
+        .balanco { color: #0d6efd; }
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 2em; }
+        th, td { padding: 12px; border-bottom: 1px solid #dee2e6; text-align: left; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2em; }
+        .chart-container, .settings-card { background-color: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .chart-container h3 { text-align: center; margin-top: 0; }
+        .tabs { border-bottom: 2px solid #dee2e6; margin-bottom: 2em; }
+        .tab-link { padding: 1em 1.5em; display: inline-block; border: none; background: none; cursor: pointer; font-size: 1.1em; color: #6c757d; }
+        .tab-link.active { font-weight: bold; color: #0d6efd; border-bottom: 2px solid #0d6efd; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Estilos para formulários e listas de configurações */
+        .settings-list { list-style: none; padding: 0; max-height: 250px; overflow-y: auto; }
+        .settings-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.8em; border-bottom: 1px solid #eee; }
+        .settings-list li span { font-size: 0.9em; color: #6c757d; margin-left: 1em; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 0.5em 0.8em; border-radius: 4px; cursor: pointer; }
+        .form-group { margin-top: 1.5em; }
+        .form-group input, .form-group select { width: calc(100% - 22px); padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 0.5em;}
+        .form-group button { width: 100%; padding: 10px; background-color: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 0.5em; }
+        .card-rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard Financeiro</h1>
+        <div class="tabs">
+            <button class="tab-link active" onclick="openTab(event, 'Dashboard')">Dashboard</button>
+            <button class="tab-link" onclick="openTab(event, 'Extrato')">Extrato</button>
+            <button class="tab-link" onclick="openTab(event, 'Configuracoes')">Configurações</button>
+        </div>
+
+        <div id="Dashboard" class="tab-content active">
+            <!-- Conteúdo da Aba Dashboard -->
+            <h2>Resumo Geral</h2>
+            <div class="summary">
+                <div class="card"><h3 class="receita">Total de Receitas</h3><p class="receita">R$ {{ "%.2f"|format(total_receitas) }}</p></div>
+                <div class="card"><h3 class="despesa">Total de Despesas</h3><p class="despesa">R$ {{ "%.2f"|format(total_despesas) }}</p></div>
+                <div class="card"><h3 class="balanco">Balanço Final</h3><p class="balanco">R$ {{ "%.2f"|format(balanco) }}</p></div>
+            </div>
+            {% if saldos_por_conta %}
+            <h2>Saldos por Conta</h2>
+            <div class="summary">
+                {% for conta, dados in saldos_por_conta.items() %}
+                <div class="card">
+                    <h3>{{ conta }}</h3>
+                    <p class="receita" style="font-size: 1em;">Receitas: R$ {{ "%.2f"|format(dados.receitas) }}</p>
+                    <p class="despesa" style="font-size: 1em;">Despesas: R$ {{ "%.2f"|format(dados.despesas) }}</p>
+                    <p class="balanco">Saldo: R$ {{ "%.2f"|format(dados.saldo) }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="charts-grid">
+                <div class="chart-container"><h3>Gastos no Débito: R$ {{ "%.2f"|format(total_gastos_debito) }}</h3><canvas id="debitChart"></canvas></div>
+                <div class="chart-container"><h3>Gastos no Crédito: R$ {{ "%.2f"|format(total_gastos_credito) }}</h3><canvas id="creditChart"></canvas></div>
+                <div class="chart-container"><h3>Total de Gastos: R$ {{ "%.2f"|format(total_despesas) }}</h3><canvas id="totalChart"></canvas></div>
+            </div>
+        </div>
+
+        <div id="Extrato" class="tab-content">
+            <!-- Conteúdo da Aba Extrato -->
+            {% if previsao_faturas %}
+            <h2>Previsão de Faturas Futuras</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cartão</th>
+                        {% for mes in meses_previsao %}
+                        <th>{{ mes.capitalize() }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cartao, faturas_mes in previsao_faturas.items() %}
+                    <tr>
+                        <td><strong>{{ cartao }}</strong></td>
+                        {% for mes in meses_previsao %}
+                        <td>{% if faturas_mes[mes] > 0 %} R$ {{ "%.2f"|format(faturas_mes[mes]) }} {% else %} - {% endif %}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            <h2>Extrato de Transações Recentes</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th><th>Descrição</th><th>Categoria</th><th>Método</th><th>Conta/Cartão</th><th>Tipo</th><th>Valor (R$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transacao in transacoes %}
+                    <tr>
+                        <td>{{ transacao.timestamp.split('T')[0] }}</td>
+                        <td>{{ transacao.descricao }}</td>
+                        <td>{{ transacao.get('categoria', 'N/A') }}</td>
+                        <td>{{ transacao.get('metodo', 'N/A') }}</td>
+                        <td>{{ transacao.get('conta') or transacao.get('cartao') or 'N/A' }}</td>
+                        <td class="{{ transacao.tipo }}">{{ transacao.tipo.capitalize() }}</td>
+                        <td class="{{ transacao.tipo }}">{{ "- " if transacao.tipo == 'despesa' else "+ " }}{{ "%.2f"|format(transacao.valor) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="Configuracoes" class="tab-content">
+            <!-- Conteúdo da Aba Configurações -->
+            <h2>Configurações</h2>
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <h3>Gerir Categorias</h3>
+                    <ul class="settings-list">
+                        {% for nome, palavras in categorias_disponiveis.items() %}
+                        <li>
+                            <div>
+                                <strong>{{ nome }}</strong><br>
+                                <span>{{ palavras|join(', ') }}</span>
+                            </div>
+                            <button class="delete-btn" onclick="deleteCategory('{{ nome }}')">X</button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <form id="add-category-form" class="form-group">
+                        <input type="text" id="new-category-name" placeholder="Nome da Categoria" required>
+                        <input type="text" id="new-category-keywords" placeholder="Palavras-chave (ex: mercado, ifood)" required>
+                        <button type="submit">Adicionar Categoria</button>
+                    </form>
+                </div>
+                <div class="settings-card">
+                    <h3>Gerir Contas</h3>
+                     <ul class="settings-list">
+                        {% for conta in contas_disponiveis.contas %}
+                        <li><strong>{{ conta }}</strong><button class="delete-btn" onclick="deleteAccount('{{ conta }}')">X</button></li>
+                        {% endfor %}
+                    </ul>
+                     <form id="add-account-form" class="form-group">
+                        <input type="text" id="new-account-name" placeholder="Nome da Conta (ex: Bradesco)" required>
+                        <button type="submit">Adicionar Conta</button>
+                    </form>
+                </div>
+                <div class="settings-card">
+                    <h3>Gerir Metas</h3>
+                     <ul class="settings-list">
+                        {% for cat, val in metas.items() %}
+                        <li><strong>{{ cat }}</strong><span>R$ {{ "%.2f"|format(val) }}</span><button class="delete-btn" onclick="deleteMeta('{{ cat }}')">X</button></li>
+                        {% endfor %}
+                    </ul>
+                     <form id="add-meta-form" class="form-group">
+                        <select id="meta-category" required>
+                            {% for cat in categorias_disponiveis.keys() %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" step="0.01" id="meta-value" placeholder="Valor da Meta" required>
+                        <button type="submit">Adicionar Meta</button>
+                    </form>
+                </div>
+                <div class="settings-card">
+                    <h3>Regras dos Cartões</h3>
+                    <form id="card-rules-form">
+                        {% for cartao in contas_disponiveis.cartoes %}
+                        <div class="form-group card-rules-grid">
+                            <label for="fechamento-{{cartao}}">{{cartao}} - Dia Fecho:</label>
+                            <input type="number" id="fechamento-{{cartao}}" value="{{ regras_cartoes.get(cartao, '') }}" min="1" max="31">
+                        </div>
+                         {% endfor %}
+                        <div class="form-group">
+                            <button type="submit">Salvar Regras</button>
+                        </div>
+                    </form>
+                </div>
+                 <div class="settings-card">
+                    <h3>Gerir Lembretes</h3>
+                     <ul class="settings-list">
+                        {% for lembrete in lembretes %}
+                        <li>
+                            <div>
+                                <strong>{{ lembrete.descricao }}</strong><br>
+                                <span>R$ {{ "%.2f"|format(lembrete.valor) }} - Vence dia {{ lembrete.dia_vencimento }}</span>
+                            </div>
+                            <button class="delete-btn" onclick="deleteLembrete('{{ lembrete.timestamp }}')">X</button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const USER_ID = "{{ user_id }}";
+
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tab-link");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelector('.tab-link').click();
+        });
+
+        async function postData(url = '', data = {}) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return response;
+        }
+
+        document.getElementById('add-category-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('new-category-name').value;
+            const keywords = document.getElementById('new-category-keywords').value;
+            const response = await postData('/add_category', { user_id: USER_ID, nome_categoria: name, palavras_chave: keywords });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao adicionar categoria.');
+        });
+
+        async function deleteCategory(name) {
+            if (!confirm(`Tem certeza que deseja apagar a categoria "${name}"?`)) return;
+            const response = await postData('/delete_category', { user_id: USER_ID, nome_categoria: name });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao apagar categoria.');
+        }
+
+        document.getElementById('add-account-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('new-account-name').value;
+            const response = await postData('/add_account', { user_id: USER_ID, nome_conta: name });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao adicionar conta.');
+        });
+
+        async function deleteAccount(name) {
+            if (!confirm(`Tem certeza que deseja apagar a conta "${name}"?`)) return;
+            const response = await postData('/delete_account', { user_id: USER_ID, nome_conta: name });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao apagar conta.');
+        }
+
+        document.getElementById('add-meta-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const category = document.getElementById('meta-category').value;
+            const value = document.getElementById('meta-value').value;
+            const response = await postData('/add_meta', { user_id: USER_ID, categoria: category, valor: value });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao adicionar meta.');
+        });
+
+        async function deleteMeta(name) {
+            if (!confirm(`Tem certeza que deseja apagar a meta para "${name}"?`)) return;
+            const response = await postData('/delete_meta', { user_id: USER_ID, categoria: name });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao apagar meta.');
+        }
+
+        document.getElementById('card-rules-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const regras = {};
+            const cartoes = {{ contas_disponiveis.cartoes|tojson|safe }};
+            cartoes.forEach(cartao => {
+                const value = document.getElementById(`fechamento-${cartao}`).value;
+                if(value) regras[cartao] = parseInt(value, 10);
+            });
+            const response = await postData('/save_card_rules', { user_id: USER_ID, regras: regras });
+            if (response.ok) {
+                alert('Regras salvas com sucesso!');
+                window.location.reload();
+            } else {
+                alert('Erro ao salvar regras.');
+            }
+        });
+
+        async function deleteLembrete(timestamp) {
+            if (!confirm(`Tem certeza que deseja apagar este lembrete?`)) return;
+            const response = await postData('/delete_lembrete', { user_id: USER_ID, timestamp: timestamp });
+            if (response.ok) window.location.reload();
+            else alert('Erro ao apagar lembrete.');
+        }
+
+        // Script dos Gráficos
+        Chart.register(ChartDataLabels);
+
+        function prepareChartData(transactions) {
+            const dataByCategory = {};
+            transactions.forEach(d => {
+                const category = d.categoria || 'Outros';
+                if (dataByCategory[category]) dataByCategory[category] += d.valor;
+                else dataByCategory[category] = d.valor;
+            });
+            return { labels: Object.keys(dataByCategory), data: Object.values(dataByCategory) };
+        }
+
+        function createPieChart(canvasId, labels, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (data.length === 0) {
+                ctx.font = "16px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("Sem dados para exibir", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+            const total = data.reduce((acc, value) => acc + value, 0);
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#7D4F50'],
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    plugins: { 
+                        datalabels: {
+                            formatter: (value, context) => {
+                                const label = context.chart.data.labels[context.dataIndex];
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}\n R$ ${value.toFixed(2)} (${percentage}%)`;
+                            },
+                            color: '#fff',
+                            font: { weight: 'bold', size: 12 },
+                            textStrokeColor: 'black',
+                            textStrokeWidth: 1
+                        },
+                        legend: { display: false }
+                    } 
+                }
+            });
+        }
+
+        const despesasDebito = {{ despesas_debito|tojson|safe }};
+        const despesasCredito = {{ despesas_credito|tojson|safe }};
+        const totalDespesas = despesasDebito.concat(despesasCredito);
+
+        const debitData = prepareChartData(despesasDebito);
+        createPieChart('debitChart', debitData.labels, debitData.data);
+        const creditData = prepareChartData(despesasCredito);
+        createPieChart('creditChart', creditData.labels, creditData.data);
+        const totalData = prepareChartData(totalDespesas);
+        createPieChart('totalChart', totalData.labels, totalData.data);
+    </script>
+</body>
+</html>
+
